@@ -9,6 +9,9 @@ import (
 type DomainKeyword struct {
 	keyword string
 	adapter string
+
+	isMulti    bool
+	arrKeyword []string
 }
 
 func (dk *DomainKeyword) RuleType() C.RuleType {
@@ -16,7 +19,18 @@ func (dk *DomainKeyword) RuleType() C.RuleType {
 }
 
 func (dk *DomainKeyword) Match(metadata *C.Metadata) bool {
-	return strings.Contains(metadata.Host, dk.keyword)
+	// fast fallover
+	if !dk.isMulti {
+		return strings.Contains(metadata.Host, dk.keyword)
+	} else {
+		for _, keyword := range dk.arrKeyword {
+			if keyword != "" && !strings.Contains(metadata.Host, keyword) {
+				return false
+			}
+		}
+
+		return true
+	}
 }
 
 func (dk *DomainKeyword) Adapter() string {
@@ -36,8 +50,22 @@ func (dk *DomainKeyword) ShouldFindProcess() bool {
 }
 
 func NewDomainKeyword(keyword string, adapter string) *DomainKeyword {
-	return &DomainKeyword{
-		keyword: strings.ToLower(keyword),
-		adapter: adapter,
+	if strings.Index(keyword, " ") >= 0 {
+
+		keywords := strings.Split(keyword, " ")
+
+		return &DomainKeyword{
+			keyword:    strings.ToLower(keyword),
+			adapter:    adapter,
+			isMulti:    true,
+			arrKeyword: keywords,
+		}
+	} else {
+		return &DomainKeyword{
+			keyword:    strings.ToLower(keyword),
+			adapter:    adapter,
+			isMulti:    false,
+			arrKeyword: nil,
+		}
 	}
 }
